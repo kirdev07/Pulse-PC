@@ -1,0 +1,39 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+Pulse_PC/
+Pulse_PC_Release.zip
+
+# PyInstaller
+*.manifest
+
+# Installer Source temporary files
+Installer_Source/build/
+Installer_Source/dist/
+
+# Environments
+.env
+.venv
+venv/
+ENV/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.lock
+
+# Logs and databases
+*.log
+*.sqlite
