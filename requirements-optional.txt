@@ -5,3 +5,5 @@ winrt-Windows.Media.Control>=3.0
 winrt-Windows.Storage.Streams>=3.0
 winrt-Windows.Foundation>=3.0
 winrt-Windows.Foundation.Collections>=3.0
+# Точная громкость Windows (ползунок на телефоне и часах)
+pycaw>=20240210

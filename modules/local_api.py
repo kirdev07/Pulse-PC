@@ -18,7 +18,7 @@ from aiohttp import web
 
 import config
 from desktop_services import computer_info
-from modules import mobile_access, notify_bus, now_playing, player_bridge
+from modules import mobile_access, notify_bus, now_playing, player_bridge, volume as system_volume
 from modules.keyboards import load_programs
 from modules.program_store import effective_process
 from modules.utils import kill_process
@@ -136,6 +136,35 @@ def make_app(features_getter=lambda: None):
         if not ok:
             raise ValueError(error or "Не удалось закрыть программу.")
         return web.json_response({"ok": True, "message": f"Закрыто: {program['name']}"})
+
+    @routes.get("/api/volume")
+    async def get_volume(_):
+        level = await asyncio.to_thread(system_volume.get)
+        if level is None:
+            raise ValueError("Точная громкость недоступна: установите pycaw (pip install pycaw).")
+        return web.json_response({"ok": True, **level})
+
+    @routes.post("/api/volume")
+    async def set_volume(request):
+        """{level: 0..100} | {delta: -100..100} | {muted: bool}"""
+        if not system_volume.AVAILABLE:
+            raise ValueError("Точная громкость недоступна: установите pycaw (pip install pycaw).")
+        body = await request.json() if request.can_read_body else {}
+        if "level" in body:
+            if type(body["level"]) is not int:
+                raise ValueError("Уровень должен быть числом 0–100.")
+            await asyncio.to_thread(system_volume.set_level, body["level"])
+        elif "delta" in body:
+            if type(body["delta"]) is not int or not -100 <= body["delta"] <= 100:
+                raise ValueError("Изменение должно быть числом от -100 до 100.")
+            await asyncio.to_thread(system_volume.adjust, body["delta"])
+        elif "muted" in body:
+            if type(body["muted"]) is not bool:
+                raise ValueError("muted: true или false.")
+            await asyncio.to_thread(system_volume.set_muted, body["muted"])
+        else:
+            raise ValueError("Укажите level, delta или muted.")
+        return web.json_response({"ok": True, **(await asyncio.to_thread(system_volume.get) or {})})
 
     @routes.post("/api/media/{action}")
     async def media(request):
@@ -373,7 +402,8 @@ def make_app(features_getter=lambda: None):
                 data = own_player()
             else:
                 data = external
-        return web.json_response({"ok": True, "player": data or {"status": "none"}})
+        level = await asyncio.to_thread(system_volume.get)        # exact PC volume when pycaw is installed
+        return web.json_response({"ok": True, "player": data or {"status": "none"}, "system_volume": level})
 
     @routes.get("/api/player/sessions")
     async def player_sessions(_):
