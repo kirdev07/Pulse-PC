@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Палитра логотипа Pulse PC: глубокий чёрный, белый и синий/голубой -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="bg">#FF030406</color>
+    <color name="surface">#FF070B10</color>
+    <color name="container">#FF0D1319</color>
+    <color name="container_high">#FF141C26</color>
+    <color name="container_highest">#FF1B2635</color>
+    <color name="outline">#FF263348</color>
+    <color name="text">#FFEEF3FA</color>
+    <color name="text_dim">#FF8A97A8</color>
+    <color name="accent">#FF2A8CFF</color>
+    <color name="accent_light">#FF19C3FF</color>
+    <color name="accent_container">#FF14304F</color>
+</resources>

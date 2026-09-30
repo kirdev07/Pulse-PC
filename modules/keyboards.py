@@ -5,6 +5,8 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMar
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 
 import config
+from modules.program_store import validate_programs
+from modules.bot_preferences import load_preferences, FAVORITE_ACTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +17,7 @@ def load_programs() -> list:
         return []
     try:
         with open(config.PROGRAMS_FILE_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
+            return validate_programs(json.load(f))
     except Exception as e:
         logger.error(f"Ошибка при загрузке JSON-файла программ: {e}")
         return []
@@ -25,12 +27,27 @@ def get_reply_keyboard() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.add(KeyboardButton(text="🖥️ Меню управления"))
     builder.add(KeyboardButton(text="📸 Скриншот"))
+    builder.add(KeyboardButton(text="📖 Помощь"))
     builder.adjust(2)
     return builder.as_markup(resize_keyboard=True)
 
 # Главное встроенное меню
 def get_main_inline_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
+    settings = load_preferences()
+    programs = None
+    favorite_buttons = []
+    for item in settings["favorites"]:
+        if item.startswith("program:"):
+            if programs is None:
+                programs = {p.get("id", str(i)): p for i, p in enumerate(load_programs())}
+            program = programs.get(item[8:])
+            if program:
+                favorite_buttons.append(InlineKeyboardButton(text="⭐ " + program["name"][:40], callback_data="run_" + item[8:]))
+        else:
+            favorite_buttons.append(InlineKeyboardButton(text="⭐ " + FAVORITE_ACTIONS[item], callback_data=item))
+    for i in range(0, len(favorite_buttons), 2):
+        builder.row(*favorite_buttons[i:i + 2])
     builder.row(
         InlineKeyboardButton(text="⚙️ Система", callback_data="menu_system"),
         InlineKeyboardButton(text="🚀 Запуск программ", callback_data="menu_launch")
@@ -43,6 +60,15 @@ def get_main_inline_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text="🎵 Мультимедиа", callback_data="menu_media"),
         InlineKeyboardButton(text="🔍 Поиск", callback_data="menu_search")
     )
+    builder.row(
+        InlineKeyboardButton(text="📁 Файлы", callback_data="menu_files"),
+        InlineKeyboardButton(text="📊 Информация о ПК", callback_data="sys_info")
+    )
+    builder.row(InlineKeyboardButton(text="⏲ Таймер", callback_data="menu_power"),
+                InlineKeyboardButton(text="▶ Сценарии", callback_data="menu_scenarios"))
+    builder.row(InlineKeyboardButton(text="🪟 Окна", callback_data="menu_windows"),
+                InlineKeyboardButton(text="📨 История файлов", callback_data="menu_history"))
+    builder.row(InlineKeyboardButton(text="📖 Помощь", callback_data="menu_help"))
     return builder.as_markup()
 
 # Меню управления системой (Выкл, Сон, Блокировка)
@@ -87,7 +113,8 @@ def get_launch_inline_keyboard() -> InlineKeyboardMarkup:
     programs = load_programs()
     for idx, prog in enumerate(programs):
         name = prog.get("name", f"Программа {idx + 1}")
-        builder.add(InlineKeyboardButton(text=f"🚀 {name}", callback_data=f"run_{idx}"))
+        key = prog.get("id", str(idx))
+        builder.add(InlineKeyboardButton(text=f"🚀 {name}", callback_data=f"run_{key}"))
     builder.adjust(2)
     builder.row(InlineKeyboardButton(text="◀️ Назад", callback_data="menu_main"))
     return builder.as_markup()

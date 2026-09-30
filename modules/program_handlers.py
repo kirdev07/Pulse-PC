@@ -1,3 +1,5 @@
+from html import escape
+import asyncio
 import os
 import subprocess
 import logging
@@ -7,15 +9,29 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, InlineKeyboardButton
 
 from modules.keyboards import load_programs, get_launch_inline_keyboard, get_close_inline_keyboard
 from modules.utils import safe_edit_text, kill_process
+from modules.program_store import effective_process
 
 logger = logging.getLogger(__name__)
 router = Router()
 
+
+def program_index(key, programs):
+    for index, program in enumerate(programs):
+        if program.get("id") == key:
+            return index
+    # Once IDs are saved, old numeric buttons must be refreshed: their order
+    # may no longer match the file. Never launch a different application.
+    if not any(p.get("id") for p in programs) and key.isdigit():
+        index = int(key)
+        if 0 <= index < len(programs):
+            return index
+    return -1
+
 # Запуск программы
 @router.callback_query(F.data.startswith("run_"))
 async def callback_run_program(callback: CallbackQuery):
-    idx = int(callback.data.split("_")[1])
     programs = load_programs()
+    idx = program_index(callback.data.split("_", 1)[1], programs)
     if idx < 0 or idx >= len(programs):
         await callback.answer("Программа не найдена в списке.", show_alert=True)
         return
@@ -23,7 +39,7 @@ async def callback_run_program(callback: CallbackQuery):
     prog = programs[idx]
     name = prog.get("name")
     path = prog.get("path")
-    process = prog.get("process")
+    process = await asyncio.to_thread(effective_process, prog)
     
     if not path:
         await callback.answer(f"Путь для {name} не настроен.", show_alert=True)
@@ -41,9 +57,9 @@ async def callback_run_program(callback: CallbackQuery):
         # Создаем Inline-кнопку для моментального закрытия этой же программы
         builder = InlineKeyboardBuilder()
         if process:
-            builder.row(InlineKeyboardButton(text=f"❌ Закрыть {name}", callback_data=f"killback_{idx}"))
+            builder.row(InlineKeyboardButton(text=f"❌ Закрыть {name}", callback_data=f"killback_{prog.get('id', str(idx))}"))
         else:
-            builder.row(InlineKeyboardButton(text="⏹️ Закрыть активное окно (Alt+F4)", callback_data="sys_close_active_and_back"))
+            builder.row(InlineKeyboardButton(text="Выбрать окно для закрытия", callback_data="menu_close"))
             
         builder.row(
             InlineKeyboardButton(text="🚀 К списку программ", callback_data="menu_launch"),
@@ -52,61 +68,25 @@ async def callback_run_program(callback: CallbackQuery):
         
         await safe_edit_text(
             callback.message,
-            f"🚀 <b>Программа {name} запущена!</b>\n\nВы можете закрыть её прямо сейчас с помощью кнопки ниже или вернуться в меню.",
+            f"🚀 <b>Программа {escape(str(name))} запущена!</b>\n\nВы можете закрыть её прямо сейчас с помощью кнопки ниже или вернуться в меню.",
             builder.as_markup()
         )
     except Exception as e:
         logger.error(f"Ошибка при запуске {name} ({path}): {e}")
         await callback.answer(f"Ошибка запуска: {e}", show_alert=True)
 
-# Закрытие программы
-@router.callback_query(F.data.startswith("killproc_"))
-async def callback_kill_program(callback: CallbackQuery):
-    idx = int(callback.data.split("_")[1])
-    programs = load_programs()
-    if idx < 0 or idx >= len(programs):
-        await callback.answer("Программа не найдена в списке.", show_alert=True)
-        return
-        
-    prog = programs[idx]
-    name = prog.get("name")
-    process = prog.get("process")
-    
-    if not process:
-        await callback.answer(f"Имя процесса для {name} не настроено.", show_alert=True)
-        return
-        
-    try:
-        success, error_msg = await kill_process(process)
-
-        if success:
-            await callback.answer(f"Процесс {process} завершен.")
-            await safe_edit_text(
-                callback.message,
-                f"❌ <b>Закрытие программ</b>\n\nПроцесс <b>{process}</b> ({name}) успешно завершен!\n\nВыберите программу для закрытия:",
-                get_close_inline_keyboard()
-            )
-        else:
-            if "не найден" in error_msg.lower() or "not found" in error_msg.lower():
-                await callback.answer(f"Процесс {process} не найден (возможно, уже закрыт).", show_alert=True)
-            else:
-                await callback.answer(f"Ошибка при закрытии {process}: {error_msg}", show_alert=True)
-    except Exception as e:
-        logger.error(f"Ошибка при закрытии процесса {process}: {e}")
-        await callback.answer(f"Ошибка при завершении процесса: {e}", show_alert=True)
-
 # Быстрое закрытие программы сразу после запуска и возврат к списку
 @router.callback_query(F.data.startswith("killback_"))
 async def callback_kill_and_back(callback: CallbackQuery):
-    idx = int(callback.data.split("_")[1])
     programs = load_programs()
+    idx = program_index(callback.data.split("_", 1)[1], programs)
     if idx < 0 or idx >= len(programs):
         await callback.answer("Программа не найдена в списке.", show_alert=True)
         return
         
     prog = programs[idx]
     name = prog.get("name")
-    process = prog.get("process")
+    process = await asyncio.to_thread(effective_process, prog)
     
     if not process:
         await callback.answer(f"Имя процесса для {name} не настроено.", show_alert=True)
@@ -119,7 +99,7 @@ async def callback_kill_and_back(callback: CallbackQuery):
             await callback.answer(f"Программа {name} закрыта.")
             await safe_edit_text(
                 callback.message,
-                f"🚀 <b>Запуск программ</b>\n\nПрограмма <b>{name}</b> была успешно закрыта.\n\nВыберите программу для запуска:",
+                f"🚀 <b>Запуск программ</b>\n\nПрограмма <b>{escape(str(name))}</b> была успешно закрыта.\n\nВыберите программу для запуска:",
                 get_launch_inline_keyboard()
             )
         else:
@@ -130,21 +110,6 @@ async def callback_kill_and_back(callback: CallbackQuery):
     except Exception as e:
         logger.error(f"Ошибка при закрытии в kill_and_back: {e}")
         await callback.answer(f"Ошибка: {e}", show_alert=True)
-
-# Закрытие активного окна сразу после запуска и возврат к списку
-@router.callback_query(F.data == "sys_close_active_and_back")
-async def callback_close_active_and_back(callback: CallbackQuery):
-    try:
-        import pyautogui
-        pyautogui.hotkey('alt', 'f4')
-        await callback.answer("Активное окно закрыто (Alt+F4)")
-        await safe_edit_text(
-            callback.message,
-            "🚀 <b>Запуск программ</b>\n\nАктивное окно закрыто.\n\nВыберите программу для запуска:",
-            get_launch_inline_keyboard()
-        )
-    except Exception as e:
-        await callback.answer(f"Ошибка при закрытии окна: {e}", show_alert=True)
 
 # Закрытие конкретного окна по hWnd
 @router.callback_query(F.data.startswith("killhwnd_"))

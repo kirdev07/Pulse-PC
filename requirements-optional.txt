@@ -1,0 +1,7 @@
+# Необязательно: чтение «что играет» из других программ (Яндекс Музыка, браузер, Spotify).
+# Если не поставится, остальное работает.
+winrt-runtime>=3.0
+winrt-Windows.Media.Control>=3.0
+winrt-Windows.Storage.Streams>=3.0
+winrt-Windows.Foundation>=3.0
+winrt-Windows.Foundation.Collections>=3.0

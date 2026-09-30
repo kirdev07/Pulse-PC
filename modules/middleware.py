@@ -3,7 +3,6 @@ from aiogram import BaseMiddleware
 from aiogram.types import Message, CallbackQuery
 
 import config
-from modules.monitor import pc_is_locked
 
 import time
 
@@ -56,7 +55,11 @@ class AuthMiddleware(BaseMiddleware):
             return
             
         import modules.monitor as monitor_module
-        if monitor_module.pc_is_locked:
+        text = (event.text or "") if isinstance(event, Message) else ""
+        command = text.split()[0].split("@")[0].lower() if text.split() else ""
+        allowed_when_locked = (isinstance(event, Message) and (command in ("/help", "/cancel") or text == "📖 Помощь")) or (
+            isinstance(event, CallbackQuery) and (event.data in ("power_cancel", "menu_help") or (event.data or "").startswith("help:")))
+        if monitor_module.pc_is_locked and not allowed_when_locked:
             if isinstance(event, CallbackQuery):
                 await event.answer("⛔ ПК заблокирован. Управление недоступно.", show_alert=True)
                 return

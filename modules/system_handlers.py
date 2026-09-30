@@ -1,4 +1,4 @@
-import sys
+from html import escape
 import logging
 import subprocess
 import pyautogui
@@ -13,6 +13,7 @@ from modules.keyboards import (
     get_media_inline_keyboard, get_launch_inline_keyboard, get_close_inline_keyboard
 )
 from modules.utils import safe_edit_text
+from modules.welcome import control_panel_text, welcome_text
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -21,12 +22,12 @@ router = Router()
 @router.message(Command("start"))
 async def start_cmd(message: Message):
     await message.answer(
-        f"Привет, {message.from_user.first_name}! Я Pulse PC для управления компьютером.\n\n"
-        f"Используйте кнопки меню ниже для управления.",
-        reply_markup=get_reply_keyboard()
+        welcome_text(message.from_user.first_name if message.from_user else None),
+        reply_markup=get_reply_keyboard(),
+        parse_mode="HTML"
     )
     await message.answer(
-        "🖥️ <b>Панель управления ПК</b>\n\nВыберите категорию:",
+        control_panel_text(),
         reply_markup=get_main_inline_keyboard(),
         parse_mode="HTML"
     )
@@ -35,7 +36,7 @@ async def start_cmd(message: Message):
 @router.message(F.text == "🖥️ Меню управления")
 async def show_main_menu_text(message: Message):
     await message.answer(
-        "🖥️ <b>Панель управления ПК</b>\n\nВыберите категорию:",
+        control_panel_text(),
         reply_markup=get_main_inline_keyboard(),
         parse_mode="HTML"
     )
@@ -80,7 +81,7 @@ async def make_screenshot_text(message: Message):
 async def callback_menu_main(callback: CallbackQuery):
     await safe_edit_text(
         callback.message,
-        "🖥️ <b>Панель управления ПК</b>\n\nВыберите категорию:",
+        control_panel_text(),
         get_main_inline_keyboard()
     )
     await callback.answer()
@@ -125,24 +126,6 @@ async def callback_menu_close(callback: CallbackQuery):
     )
     await callback.answer()
 
-# Системное действие: Выключение
-@router.callback_query(F.data == "sys_shutdown")
-async def callback_shutdown(callback: CallbackQuery):
-    try:
-        subprocess.Popen(["shutdown", "/s", "/t", "0"])
-        await callback.answer("Компьютер выключается!", show_alert=True)
-    except Exception as e:
-        await callback.answer(f"Ошибка выключения: {e}", show_alert=True)
-
-# Системное действие: Перезагрузка
-@router.callback_query(F.data == "sys_restart")
-async def callback_restart(callback: CallbackQuery):
-    try:
-        subprocess.Popen(["shutdown", "/r", "/t", "0"])
-        await callback.answer("Компьютер уходит в перезагрузку!", show_alert=True)
-    except Exception as e:
-        await callback.answer(f"Ошибка перезагрузки: {e}", show_alert=True)
-
 # Системное действие: Сон
 @router.callback_query(F.data == "sys_sleep")
 async def callback_sleep(callback: CallbackQuery):
@@ -185,7 +168,7 @@ async def search_reply_handler(message: Message):
         from aiogram.types import InlineKeyboardButton
         builder = InlineKeyboardBuilder()
         builder.row(InlineKeyboardButton(text="🔍 Искать еще", callback_data="menu_search"))
-        await message.answer(f"🔍 В браузере открыт поиск по запросу:\n<b>{query}</b>", parse_mode="HTML", reply_markup=builder.as_markup())
+        await message.answer(f"🔍 В браузере открыт поиск по запросу:\n<b>{escape(str(query))}</b>", parse_mode="HTML", reply_markup=builder.as_markup())
     except Exception as e:
         logger.error(f"Ошибка при поиске: {e}")
         await message.answer(f"Ошибка: {e}")
@@ -297,7 +280,7 @@ async def cmd_search(message: Message):
         from aiogram.types import InlineKeyboardButton
         builder = InlineKeyboardBuilder()
         builder.row(InlineKeyboardButton(text="🔍 Искать еще", callback_data="menu_search"))
-        await message.answer(f"🔍 В браузере открыт поиск по запросу:\n<b>{query}</b>", parse_mode="HTML", reply_markup=builder.as_markup())
+        await message.answer(f"🔍 В браузере открыт поиск по запросу:\n<b>{escape(str(query))}</b>", parse_mode="HTML", reply_markup=builder.as_markup())
     except Exception as e:
         logger.error(f"Ошибка при поиске: {e}")
         await message.answer(f"Ошибка: {e}")

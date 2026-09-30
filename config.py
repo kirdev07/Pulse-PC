@@ -7,8 +7,8 @@ if getattr(sys, 'frozen', False):
     # Если запущено как скомпилированный EXE через PyInstaller
     APP_DIR = os.path.dirname(sys.executable)
 else:
-    # При обычном запуске (из Source_Code), выходим на уровень выше в Pulse_PC
-    APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # При обычном запуске
+    APP_DIR = os.path.dirname(os.path.abspath(__file__))
 
 CONFIG_DIR = os.path.join(APP_DIR, "config")
 os.makedirs(CONFIG_DIR, exist_ok=True)

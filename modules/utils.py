@@ -15,7 +15,6 @@ async def safe_edit_text(message: Message, text: str, reply_markup: InlineKeyboa
 import os
 import time
 import config
-import subprocess
 
 def cleanup_old_files(days=3):
     """Удаляет файлы старше `days` дней из папки files."""

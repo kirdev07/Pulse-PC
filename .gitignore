@@ -1,39 +1,23 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
-*$py.class
-
-# C extensions
-*.so
-
-# Distribution / packaging
-build/
-dist/
-*.egg-info/
-.eggs/
-*.egg
-Pulse_PC/
-Pulse_PC_Release.zip
-
-# PyInstaller
-*.manifest
-
-# Installer Source temporary files
-Installer_Source/build/
-Installer_Source/dist/
-
-# Environments
-.env
-.venv
+.venv/
+.qt-venv/
 venv/
-ENV/
 
-# IDEs
+# Личные данные и настройки (токен бота, ID, список телефонов, логи)
+config/
+files/
+.env
+*.lock
+*.log
+install.log
+
+# Сборки и установочные пакеты
+*.apk
+dist/
+build/
+
+# IDE
 .idea/
 .vscode/
-*.swp
-*.lock
-
-# Logs and databases
-*.log
-*.sqlite

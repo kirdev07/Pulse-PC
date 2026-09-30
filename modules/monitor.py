@@ -1,60 +1,63 @@
 import asyncio
 import ctypes
+from ctypes import wintypes
 import logging
-
-from aiogram import Bot
 import config
 
 logger = logging.getLogger(__name__)
-
 pc_is_locked = False
 
-async def lock_monitor(bot: Bot):
-    global pc_is_locked
-    
+
+def workstation_locked():
     user32 = ctypes.windll.user32
-    was_locked = False
-    
-    while True:
+    user32.OpenInputDesktop.restype = wintypes.HANDLE
+    user32.OpenInputDesktop.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    user32.GetUserObjectInformationW.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
+    user32.CloseDesktop.argtypes = [wintypes.HANDLE]
+    desktop = user32.OpenInputDesktop(0, False, 1)
+    if not desktop:
+        return True
+    try:
+        name = ctypes.create_unicode_buffer(256)
+        length = wintypes.DWORD()
+        ok = user32.GetUserObjectInformationW(desktop, 2, name, ctypes.sizeof(name), ctypes.byref(length))
+        return not (ok and name.value.lower() == "default")
+    finally:
+        user32.CloseDesktop(desktop)
+
+
+async def lock_monitor(bot):
+    global pc_is_locked
+    previous = None
+    notification = None
+
+    async def notify(locked):
         try:
-            is_locked = True
-            
-            # Check if workstation is unlocked
-            hDesktop = user32.OpenInputDesktop(0, False, 0x0100) # DESKTOP_READOBJECTS
-            if hDesktop:
-                name_buffer = ctypes.create_unicode_buffer(256)
-                length = ctypes.c_ulong(0)
-                res = user32.GetUserObjectInformationW(hDesktop, 2, name_buffer, 512, ctypes.byref(length))
-                user32.CloseDesktop(hDesktop)
-                
-                if res and name_buffer.value.lower() == "default":
-                    is_locked = False
-            
-            if is_locked and not was_locked:
-                was_locked = True
+            await bot.send_message(chat_id=config.ADMIN_ID,
+                text="🔒 Компьютер был заблокирован." if locked else "🔓 Компьютер был разблокирован.",
+                request_timeout=5)
+        except Exception as exc:
+            logger.warning("Не удалось отправить состояние блокировки: %s", exc)
+
+    try:
+        while True:
+            try:
+                locked = workstation_locked()
+                pc_is_locked = locked
+                if locked != previous and (previous is not None or locked):
+                    from modules import notify_bus
+                    notify_bus.push("Pulse PC", "Компьютер заблокирован." if locked else "Компьютер разблокирован.")
+                if locked != previous and config.ADMIN_ID and (previous is not None or locked):
+                    if notification:
+                        notification.cancel()
+                        await asyncio.gather(notification, return_exceptions=True)
+                    notification = asyncio.create_task(notify(locked))
+                previous = locked
+            except Exception as exc:
                 pc_is_locked = True
-                if config.ADMIN_ID:
-                    try:
-                        await bot.send_message(
-                            chat_id=config.ADMIN_ID,
-                            text="🔒 <b>Внимание!</b>\n\nКомпьютер был заблокирован.",
-                            parse_mode="HTML"
-                        )
-                    except Exception:
-                        pass
-            elif not is_locked and was_locked:
-                was_locked = False
-                pc_is_locked = False
-                if config.ADMIN_ID:
-                    try:
-                        await bot.send_message(
-                            chat_id=config.ADMIN_ID,
-                            text="🔓 <b>Внимание!</b>\n\nКомпьютер был разблокирован.",
-                            parse_mode="HTML"
-                        )
-                    except Exception:
-                        pass
-                    
-        except Exception as e:
-            logger.error(f"Ошибка в мониторе блокировки: {e}")
-        await asyncio.sleep(2)
+                logger.error("Ошибка в мониторе блокировки: %s", exc)
+            await asyncio.sleep(2)
+    finally:
+        if notification:
+            notification.cancel()
+            await asyncio.gather(notification, return_exceptions=True)

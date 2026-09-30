@@ -1,10 +1,16 @@
 import os
 import webbrowser
 import logging
+import ntpath
+import re
+import tempfile
+import uuid
+from pathlib import Path
+from html import escape
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery
 import config
-from modules.keyboards import get_main_inline_keyboard
+from modules.transfer_history import track_transfer
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -12,6 +18,31 @@ router = Router()
 # Ensure files folder exists in the executable's directory
 FILES_DIR = os.path.join(config.APP_DIR, "files")
 os.makedirs(FILES_DIR, exist_ok=True)
+
+
+def entity_text(text, entity):
+    encoded = text.encode("utf-16-le")
+    return encoded[entity.offset * 2:(entity.offset + entity.length) * 2].decode("utf-16-le")
+
+
+async def save_incoming_file(bot, remote_path, name):
+    # Keep partial downloads away from the user-visible files and cleanup command.
+    directory = Path(FILES_DIR).resolve()
+    staging = directory / ".incoming"
+    staging.mkdir(exist_ok=True)
+    basename = ntpath.basename(name or "file")
+    basename = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", basename).rstrip(" .")[:160] or "file"
+    destination = directory / f"{uuid.uuid4().hex}_{basename}"
+    fd, temporary = tempfile.mkstemp(dir=staging, suffix=".part")
+    os.close(fd)
+    async with track_transfer(destination, "incoming"):
+        try:
+            await bot.download_file(remote_path, temporary)
+            # Windows rename refuses to overwrite an existing destination.
+            os.rename(temporary, destination)
+            return destination
+        finally:
+            Path(temporary).unlink(missing_ok=True)
 
 @router.message(F.text)
 @router.edited_message(F.text)
@@ -21,7 +52,7 @@ async def handle_url(message: Message):
         for entity in message.entities:
             if entity.type == "url":
                 # Extract URL from text using entity offset and length
-                url = message.text[entity.offset:entity.offset + entity.length]
+                url = entity_text(message.text, entity)
                 urls.append(url)
             elif entity.type == "text_link":
                 urls.append(entity.url)
@@ -32,10 +63,12 @@ async def handle_url(message: Message):
             for url in valid_urls:
                 webbrowser.open(url)
             
-            if len(urls) == 1:
+            if not valid_urls:
+                return
+            if len(valid_urls) == 1:
                 await message.answer("🌐 Ссылка успешно открыта в браузере.")
             else:
-                await message.answer(f"🌐 Успешно открыто ссылок: {len(urls)}.")
+                await message.answer(f"🌐 Успешно открыто ссылок: {len(valid_urls)}.")
         except Exception as e:
             await message.answer(f"Ошибка при открытии ссылки: {e}")
             logger.error(f"Error opening URL: {e}")
@@ -78,24 +111,23 @@ async def handle_media_files(message: Message, bot: Bot):
             
         MAX_SIZE_MB = 20
         if file_size and file_size > MAX_SIZE_MB * 1024 * 1024:
-            await message.answer(f"❌ Файл <b>{file_name or 'unknown'}</b> слишком большой ({(file_size/1024/1024):.1f} MB).\n\nМаксимальный допустимый размер для загрузки бота: {MAX_SIZE_MB} MB.", parse_mode="HTML")
+            await message.answer(f"❌ Файл <b>{escape(file_name or 'unknown')}</b> слишком большой ({(file_size/1024/1024):.1f} MB).\n\nМаксимальный допустимый размер для загрузки бота: {MAX_SIZE_MB} MB.", parse_mode="HTML")
             return
             
         if not file_name:
             file_name = f"unknown_{file_id[:8]}"
 
         file = await bot.get_file(file_id)
-        file_path = os.path.join(FILES_DIR, file_name)
-        await bot.download_file(file.file_path, file_path)
+        file_path = await save_incoming_file(bot, file.file_path, file_name)
         
-        await message.answer(f"✅ Файл <b>{file_name}</b> успешно сохранен.", parse_mode="HTML")
+        await message.answer(f"✅ Файл <b>{escape(file_path.name)}</b> успешно сохранен.", parse_mode="HTML")
         
         # Также проверяем ссылки в подписи к медиа (caption)
         urls = []
         if message.caption_entities and message.caption:
             for entity in message.caption_entities:
                 if entity.type == "url":
-                    url = message.caption[entity.offset:entity.offset + entity.length]
+                    url = entity_text(message.caption, entity)
                     urls.append(url)
                 elif entity.type == "text_link":
                     urls.append(entity.url)
@@ -104,10 +136,12 @@ async def handle_media_files(message: Message, bot: Bot):
             valid_urls = [u for u in urls if u.lower().startswith(("http://", "https://"))]
             for url in valid_urls:
                 webbrowser.open(url)
-            if len(urls) == 1:
+            if not valid_urls:
+                return
+            if len(valid_urls) == 1:
                 await message.answer("🌐 Ссылка из подписи успешно открыта в браузере.")
             else:
-                await message.answer(f"🌐 Успешно открыто ссылок из подписи: {len(urls)}.")
+                await message.answer(f"🌐 Успешно открыто ссылок из подписи: {len(valid_urls)}.")
                 
     except Exception as e:
         await message.answer(f"Ошибка при сохранении файла: {e}")
