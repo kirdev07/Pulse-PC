@@ -103,8 +103,8 @@ def change_window(window, action):
     elif action == "max":
         win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
     elif action == "focus":
-        win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-        win32gui.SetForegroundWindow(hwnd)
+        from modules.winutil import bring_to_front
+        bring_to_front(hwnd)
     else:
         raise ValueError("Неизвестное действие с окном.")
 

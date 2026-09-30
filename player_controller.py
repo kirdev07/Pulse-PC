@@ -117,11 +117,15 @@ class PlayerController(QObject):
         status = {QMediaPlayer.PlaybackState.PlayingState: "playing",
                   QMediaPlayer.PlaybackState.PausedState: "paused"}.get(state, "stopped")
         data = self.player.metaData()
+        title = self.current_title() if has_track else ""
+        artist = (data.stringValue(QMediaMetaData.Key.ContributingArtist) or "") if has_track else ""
+        if has_track and not artist and " - " in title:     # file named "Artist - Title" without tags
+            artist, title = (part.strip() for part in title.split(" - ", 1))
         with player_bridge.LOCK:
             player_bridge.STATE.update(
                 active=has_track and status in ("playing", "paused"),
-                title=self.current_title() if has_track else "",
-                artist=(data.stringValue(QMediaMetaData.Key.ContributingArtist) or "") if has_track else "",
+                title=title,
+                artist=artist,
                 album=(data.stringValue(QMediaMetaData.Key.AlbumTitle) or "") if has_track else "",
                 status=status, position=self.player.position() / 1000.0,
                 duration=self.player.duration() / 1000.0, volume=self.audio.volume(),

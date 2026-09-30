@@ -145,8 +145,9 @@ def start(env, extra_args=()):
     if not python.exists():
         python = env_python(env)
     flags = NO_WINDOW | getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-    subprocess.Popen([str(python), str(ROOT / "gui.py"), *extra_args], cwd=ROOT, creationflags=flags,
-                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    with open(ROOT / "launcher.log", "w", encoding="utf-8") as log:   # output of the app, to diagnose failed starts
+        subprocess.Popen([str(python), str(ROOT / "gui.py"), *extra_args], cwd=ROOT, creationflags=flags,
+                         stdin=subprocess.DEVNULL, stdout=log, stderr=log)
 
 
 # ---------- shortcut and autostart ----------

@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import config
 from bot_runtime import BotRunner
 from modules import welcome
+from modules.bot_preferences import validate_preferences
 
 
 class WelcomeTests(unittest.TestCase):
@@ -20,7 +21,8 @@ class WelcomeTests(unittest.TestCase):
 
     def test_panel_uses_real_program_count_and_handles_empty_list(self):
         with patch.object(welcome.socket, "gethostname", return_value="PC <Home>"), \
-             patch.object(welcome, "datetime") as clock, patch.object(welcome, "load_programs", return_value=[]) as programs:
+             patch.object(welcome, "datetime") as clock, patch.object(welcome, "load_programs", return_value=[]) as programs, \
+             patch.object(welcome, "load_preferences", return_value=validate_preferences({})):
             clock.now.return_value = datetime(2026, 9, 10, 14, 35)
             text = welcome.control_panel_text()
             self.assertIn("PC &lt;Home&gt;", text)

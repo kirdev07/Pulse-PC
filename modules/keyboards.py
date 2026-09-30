@@ -158,7 +158,7 @@ def get_close_inline_keyboard() -> InlineKeyboardMarkup:
             btn_text = btn_text[:40]
             builder.row(InlineKeyboardButton(text=btn_text, callback_data=f"killhwnd_{hwnd}"))
             
-    except Exception as e:
+    except Exception:
         pass
         
     builder.row(

@@ -1,6 +1,5 @@
 """Native PySide6 desktop panel for Pulse PC."""
 import asyncio
-import base64
 from collections import deque
 import importlib
 import json
@@ -15,11 +14,11 @@ import winreg
 from datetime import datetime
 
 from dotenv import dotenv_values
-from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QEvent, QObject, QPointF, QRectF, QSize, Qt, QTimer, Signal, Slot
-from PySide6.QtGui import QColor, QIcon, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap, QPolygonF, QTextCharFormat, QTextCursor
+from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, QSize, Qt, QTimer, Signal, Slot
+from PySide6.QtGui import QColor, QIcon, QLinearGradient, QPainter, QPen, QPixmap, QPolygonF, QTextCharFormat, QTextCursor
 from PySide6.QtCore import QUrl, QDir
 from PySide6.QtWidgets import (
-    QApplication, QBoxLayout, QCheckBox, QColorDialog, QFileDialog, QFrame, QGridLayout, QHBoxLayout,
+    QApplication, QBoxLayout, QCheckBox, QFileDialog, QFrame, QGridLayout, QHBoxLayout,
     QLabel, QLineEdit, QListWidget, QMainWindow, QMenu, QMessageBox, QPushButton, QProgressBar, QSlider,
     QScrollArea, QSizePolicy, QStackedWidget, QSystemTrayIcon, QTextEdit,
     QVBoxLayout, QWidget,

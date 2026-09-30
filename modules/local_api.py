@@ -158,8 +158,9 @@ def make_app(features_getter=lambda: None):
         elif action == "sleep":
             subprocess.Popen(["rundll32.exe", "powrprof.dll,SetSuspendState", "0", "1", "0"])
         elif action == "close_active":
-            import pyautogui
-            await asyncio.to_thread(pyautogui.hotkey, "alt", "f4")
+            from modules.winutil import close_foreground_window
+            title = await asyncio.to_thread(close_foreground_window)
+            return web.json_response({"ok": True, "message": f"Закрыто: {title}"})
         elif action in ("shutdown", "restart"):
             features = features_getter()
             if not features:
@@ -345,17 +346,55 @@ def make_app(features_getter=lambda: None):
         return web.json_response({"ok": True, "count": await asyncio.to_thread(count)})
 
     # ---- Player ----
+    def own_player():
+        """State of the built-in player in the same shape as a media session."""
+        own = player_bridge.snapshot()
+        return {"id": "pulse", "source": "Pulse PC", "kind": "own", "title": own["title"], "artist": own["artist"],
+                "album": own["album"], "status": own["status"], "position": own["position"],
+                "duration": own["duration"], "can_prev": True, "can_next": True,
+                "cover": own["cover_key"] if own["cover"] else "", "volume": own["volume"]}
+
+    async def external_player(source=None):
+        return await now_playing.state(source) if now_playing.AVAILABLE else None
+
     @routes.get("/api/player/state")
-    async def player_state(_):
+    async def player_state(request):
+        """source: '' = automatic, 'pulse' = built-in player, anything else = app id of a media session."""
+        source = request.query.get("source", "")
+        own = player_bridge.snapshot()
+        if source == "pulse":
+            data = own_player() if own["active"] else None
+        elif source:
+            data = await external_player(source)
+        else:
+            external = await external_player()
+            # The built-in player wins unless it is paused while another app is playing.
+            if own["active"] and (own["status"] == "playing" or not external or external["status"] != "playing"):
+                data = own_player()
+            else:
+                data = external
+        return web.json_response({"ok": True, "player": data or {"status": "none"}})
+
+    @routes.get("/api/player/sessions")
+    async def player_sessions(_):
+        """Everything that can be controlled: the built-in player and media sessions of other apps."""
+        items = await now_playing.sessions() if now_playing.AVAILABLE else []
         own = player_bridge.snapshot()
         if own["active"]:
-            data = {"source": "Pulse PC", "title": own["title"], "artist": own["artist"], "album": own["album"],
-                    "status": own["status"], "position": own["position"], "duration": own["duration"],
-                    "can_prev": True, "can_next": True, "cover": own["cover_key"] if own["cover"] else "",
-                    "volume": own["volume"]}
-        else:
-            data = await now_playing.state() if now_playing.AVAILABLE else None
-        return web.json_response({"ok": True, "player": data or {"status": "none"}})
+            items.insert(0, {"id": "pulse", "source": "Pulse PC", "kind": "own", "title": own["title"],
+                             "artist": own["artist"], "status": own["status"], "current": False})
+        return web.json_response({"ok": True, "sessions": items})
+
+    @routes.post("/api/player/focus")
+    async def player_focus(request):
+        """Show the window of the app that is playing (streaming service or browser) on the PC."""
+        body = await request.json() if request.can_read_body else {}
+        source = str(body.get("source") or "")
+        data = await external_player(source or None)
+        if not data:
+            raise ValueError("Сейчас нечего открывать.")
+        title = await asyncio.to_thread(now_playing.focus_source_window, data["id"], data["title"])
+        return web.json_response({"ok": True, "message": f"Открыто на ПК: {title}"})
 
     @routes.get("/api/player/cover")
     async def player_cover(request):
@@ -384,14 +423,18 @@ def make_app(features_getter=lambda: None):
         cmd = request.match_info["cmd"]
         body = await request.json() if request.can_read_body else {}
         value = body.get("value")
+        source = str(body.get("source") or "")
         if cmd not in ("toggle", "play", "pause", "next", "prev", "seek", "volume"):
             raise ValueError("Неизвестная команда плеера.")
-        if player_bridge.snapshot()["active"]:
+        own = player_bridge.snapshot()
+        if source == "pulse" or (not source and own["active"]):
             player_bridge.send(cmd, value)
             return web.json_response({"ok": True})
         if cmd == "volume":
             raise ValueError("Громкость плеера доступна только во встроенном плеере Pulse PC.")
-        handled = now_playing.AVAILABLE and await now_playing.command(cmd, value)
+        handled = now_playing.AVAILABLE and await now_playing.command(cmd, value, source or None)
+        if not handled and source:
+            raise ValueError("Этот источник больше не играет.")
         if not handled:
             keys = {"toggle": "playpause", "play": "playpause", "pause": "playpause", "next": "nexttrack", "prev": "prevtrack"}
             if cmd not in keys:

@@ -126,10 +126,10 @@ class FileAndAlertTests(TemporarySettings, unittest.TestCase):
             with self.assertRaises(ValueError):
                 services.change_window(window, "min")
             show.assert_not_called()
-        with patch("win32gui.IsWindow", return_value=True), patch("win32process.GetWindowThreadProcessId", return_value=(1, 20)), patch("win32gui.ShowWindow") as show, patch("win32gui.SetForegroundWindow") as focus:
+        with patch("win32gui.IsWindow", return_value=True), patch("win32process.GetWindowThreadProcessId", return_value=(1, 20)), patch("win32gui.ShowWindow") as show, patch("modules.winutil.bring_to_front") as focus:
             for action in ("min", "max", "focus"):
                 services.change_window(window, action)
-            self.assertEqual(show.call_count, 3)
+            self.assertEqual(show.call_count, 2)          # focus no longer un-maximizes the window
             focus.assert_called_once_with(10)
 
 

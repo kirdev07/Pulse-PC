@@ -86,7 +86,6 @@ async def kill_process(process_name: str) -> tuple[bool, str]:
                     pass
             return killed
             
-        import asyncio
         killed_any = await asyncio.to_thread(_kill)
         
         if killed_any:
