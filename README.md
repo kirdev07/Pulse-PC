@@ -21,8 +21,7 @@
 Подробнее: [УСТАНОВКА.md](УСТАНОВКА.md). Инструкция по боту: [BOT_GUIDE.md](BOT_GUIDE.md).
 
 ## Android‑приложение
-Проект в папке `Pulse_Pc_Mobile` (Kotlin, Material 3). Откройте в Android Studio или соберите `gradlew installDebug`.
-Приложение находит ПК в Wi‑Fi само, при первом подключении подтвердите запрос на ПК.
+Приложение для телефона распространяется отдельно (файл APK, исходники в этот репозиторий не входят). Оно находит ПК в Wi‑Fi само, при первом подключении подтвердите запрос на ПК.
 
 ## Структура
 | Путь | Что это |
@@ -30,7 +29,6 @@
 | `gui.py`, `bot_runtime.py`, `player_controller.py` | окно программы, Telegram‑бот, плеер |
 | `modules/` | обработчики бота, API для телефона (`local_api.py`), доступ телефонов (`mobile_access.py`) |
 | `launcher.py`, `PulsePC.pyw`, `install.bat` | установка и запуск |
-| `Pulse_Pc_Mobile/` | Android‑приложение |
 | `tests/` | тесты (`python -m unittest discover -s tests`) |
 
 Настройки и токен бота хранятся в `config/` и не попадают в репозиторий.

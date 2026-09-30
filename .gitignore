@@ -21,3 +21,6 @@ build/
 # IDE
 .idea/
 .vscode/
+
+# Android-приложение хранится отдельно
+Pulse_Pc_Mobile/
