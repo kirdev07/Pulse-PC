@@ -483,6 +483,10 @@ class PulsePCApp(QMainWindow):
         buttons.addStretch()
         content.addLayout(buttons)
         layout.addWidget(hero)
+        # Fusion dashboard: monitoring and transfers share a responsive horizontal row.
+        dashboard_row = QHBoxLayout()
+        dashboard_row.setSpacing(14)
+        layout.addLayout(dashboard_row)
         metrics, metrics_layout = card()
         metrics_heading = QHBoxLayout()
         metrics_heading.addWidget(label("Компьютер", "heading"))
@@ -493,7 +497,7 @@ class PulsePCApp(QMainWindow):
         metrics_layout.addWidget(self.metrics_text)
         self.metrics_updated = label("", "small", True)
         metrics_layout.addWidget(self.metrics_updated)
-        layout.addWidget(metrics)
+        dashboard_row.addWidget(metrics, 1)
         transfer, transfer_layout = card()
         transfer_layout.addWidget(label("Файлы в Telegram", "heading"))
         transfer_layout.addWidget(label("В личный чат администратора · до 50 МБ на файл", "muted", True))
@@ -526,7 +530,7 @@ class PulsePCApp(QMainWindow):
         self.transfer_details.hide()
         self.transfer_message = label("", "muted", True)
         transfer_layout.addWidget(self.transfer_message)
-        layout.addWidget(transfer)
+        dashboard_row.addWidget(transfer, 2)
         layout.addStretch()
 
     def field(self, layout, title, placeholder="", max_length=32767):
