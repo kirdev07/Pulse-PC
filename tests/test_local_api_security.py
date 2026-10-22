@@ -9,6 +9,13 @@ class LocalApiSecurityTests(AioHTTPTestCase):
     async def get_application(self):
         return make_app()
 
+    async def test_public_ping_does_not_reveal_computer_name(self):
+        response = await self.client.request("GET", "/api/ping")
+        self.assertEqual(response.status, 200)
+        data = await response.json()
+        self.assertEqual(data["app"], "PulsePC")
+        self.assertNotIn("name", data)
+
     async def test_protected_endpoint_requires_device_token(self):
         response = await self.client.request("GET", "/api/status")
         self.assertEqual(response.status, 401)
