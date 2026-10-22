@@ -94,7 +94,7 @@ QPushButton#closeWindow:hover { background: #555555; }
 """
 
 
-def icon(name, color="#B9C6D8"):
+def icon(name, color="#C9C9C9"):
     """Small vector line icons rendered locally; no web fonts or CDN."""
     paths = {
         "pulse": [[(2, 12), (7, 12), (10, 4), (14, 20), (17, 12), (22, 12)]],
@@ -163,7 +163,7 @@ def button(text, callback, kind="", symbol=None):
     widget.setProperty("kind", kind)
     widget.setCursor(Qt.CursorShape.PointingHandCursor)
     if symbol:
-        widget.setIcon(icon(symbol, "#03101F" if kind == "primary" else "#B9C6D8"))
+        widget.setIcon(icon(symbol, "#101010" if kind == "primary" else "#C9C9C9"))
     widget.clicked.connect(callback)
     return widget
 
@@ -201,8 +201,8 @@ class WindowTitleBar(QFrame):
         row.setContentsMargins(14, 0, 4, 0)
         mark = QLabel()
         emblem = QPixmap(str(Path(config.APP_DIR) / "image" / "emblem.png"))
-        mark.setPixmap(emblem.scaled(28, 28, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation) if not emblem.isNull() else icon("pulse", "#2A8CFF").pixmap(22, 22))
-        title = QLabel('<span style="color:#EEF3FA">Pulse</span> <span style="color:#2A8CFF">PC</span>')
+        mark.setPixmap(emblem.scaled(28, 28, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation) if not emblem.isNull() else icon("pulse", "#F5F5F5").pixmap(22, 22))
+        title = QLabel('<span style="color:#F5F5F5">Pulse</span> <span style="color:#F5F5F5">PC</span>')
         title.setTextFormat(Qt.TextFormat.RichText)
         title.setStyleSheet("font-size: 15px; font-weight: 700; letter-spacing: 1px;")
         for widget in (mark, title):
@@ -278,7 +278,7 @@ class PulsePCApp(QMainWindow):
         self.setStyleSheet(STYLE)
         self.setWindowIcon(QIcon(str(Path(config.APP_DIR) / "image" / "icon.ico")))
         if self.windowIcon().isNull():
-            self.setWindowIcon(icon("pulse", "#2A8CFF"))
+            self.setWindowIcon(icon("pulse", "#F5F5F5"))
         self.is_quitting = False
         self.programs_dirty = False
         self.programs_valid = True
@@ -292,7 +292,7 @@ class PulsePCApp(QMainWindow):
         self.journal = None
         self.state = "STOPPED"
         self.tray_icon = None
-        self.background_color = QColor("#05080C")
+        self.background_color = QColor("#090909")
         self.signals = UiSignals(self)
         self.signals.log.connect(self.append_log, Qt.ConnectionType.QueuedConnection)
         self.signals.status.connect(self.update_bot_status, Qt.ConnectionType.QueuedConnection)
@@ -379,11 +379,11 @@ class PulsePCApp(QMainWindow):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setPen(QPen(QColor("#1B2F4D"), 1))
+        painter.setPen(QPen(QColor("#303030"), 1))
         glow = QLinearGradient(0, 0, self.width() * 0.6, self.height())
-        glow.setColorAt(0.0, QColor("#0A1B33"))
+        glow.setColorAt(0.0, QColor("#1F1F1F"))
         glow.setColorAt(0.45, self.background_color)
-        glow.setColorAt(1.0, QColor("#04070B"))
+        glow.setColorAt(1.0, QColor("#101010"))
         painter.setBrush(glow)
         radius = 0 if self.isMaximized() or self.isFullScreen() else 14
         bounds = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
@@ -750,7 +750,7 @@ class PulsePCApp(QMainWindow):
         active = state["active"]
         self.player_title.setText(state["title"] if active else "Ничего не играет")
         self.player_artist.setText((state["artist"] or state["album"]) if active else "Выберите трек ниже — или запустите его с телефона.")
-        self.player_toggle.setIcon(icon("pause" if state["status"] == "playing" else "play", "#03101F"))
+        self.player_toggle.setIcon(icon("pause" if state["status"] == "playing" else "play", "#101010"))
         if not self.player_seek.isSliderDown():
             duration = state["duration"]
             self.player_seek.setValue(int(state["position"] / duration * 1000) if duration > 0 else 0)
@@ -851,7 +851,7 @@ class PulsePCApp(QMainWindow):
         self.pages.setCurrentIndex(index)
         for i, (item, name) in enumerate(self.nav_buttons):
             item.setChecked(i == index)
-            item.setIcon(icon(name, "#7CC0FF" if i == index else "#8A97A8"))
+            item.setIcon(icon(name, "#FFFFFF" if i == index else "#A0A0A0"))
         if index != 3:
             self.show_token.setChecked(False)
         if index == 4:
@@ -887,9 +887,9 @@ class PulsePCApp(QMainWindow):
         cursor.movePosition(QTextCursor.MoveOperation.End)
         fmt = QTextCharFormat()
         upper = text.upper()
-        color = "#ed9cac" if any(word in upper for word in ("ERROR", "ОШИБ", "КРИТИЧ")) else "#9AA9BD"
+        color = "#D0D0D0" if any(word in upper for word in ("ERROR", "ОШИБ", "КРИТИЧ")) else "#B3B3B3"
         if "ЗАПУЩЕН" in upper or "СОХРАНЕН" in upper:
-            color = "#2A8CFF"
+            color = "#F5F5F5"
         fmt.setForeground(QColor(color))
         cursor.insertText(text + "\n", fmt)
         self.console.setTextCursor(cursor)
@@ -1108,7 +1108,7 @@ class PulsePCApp(QMainWindow):
             path_label.setToolTip(program["path"])
             path_label.setCursorPosition(0)
             path_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
-            path_label.setStyleSheet("QLineEdit { background: transparent; border: none; padding: 0; color: #8A97A8; }")
+            path_label.setStyleSheet("QLineEdit { background: transparent; border: none; padding: 0; color: #A0A0A0; }")
             inner.addWidget(path_label)
             actions = QGridLayout()
             actions.addWidget(button("Изменить", lambda checked=False, i=index: self.edit_program(i)), 0, 0)
@@ -1269,12 +1269,12 @@ class PulsePCApp(QMainWindow):
         busy = status == "STOPPING"
         connection_text = {"STOPPED": "Не подключён", "STARTING": "Подключение", "RECONNECTING": "Нет связи", "RUNNING": "Telegram подключён", "STOPPING": "Отключение"}[status]
         self.connection.setText("●  " + connection_text)
-        color = "#19C3FF" if running else ("#f3c77c" if active or busy else "#8A97A8")
+        color = "#FFFFFF" if running else ("#C7C7C7" if active or busy else "#A0A0A0")
         self.connection.setStyleSheet(f"color: {color};")
         self.refresh_status_hint()
         self.toggle_button.setText(text if busy else ("Остановить" if active else "Запустить"))
         self.toggle_button.setProperty("kind", "stop" if active else "primary")
-        self.toggle_button.setIcon(icon("stop" if active else "play", "#FFB3C0" if active else "#03101F"))
+        self.toggle_button.setIcon(icon("stop" if active else "play", "#F0F0F0" if active else "#101010"))
         self.toggle_button.setEnabled(not busy and not self.is_quitting)
         self.toggle_button.style().unpolish(self.toggle_button)
         self.toggle_button.style().polish(self.toggle_button)
