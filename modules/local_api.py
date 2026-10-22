@@ -85,7 +85,7 @@ def make_app(features_getter=lambda: None):
             return json_error(400, str(exc))
         except Exception as exc:
             logger.exception("Local API error")
-            return json_error(500, str(exc))
+            return json_error(500, "Внутренняя ошибка сервера. Подробности сохранены в журнале Pulse PC.")
 
     routes = web.RouteTableDef()
 
