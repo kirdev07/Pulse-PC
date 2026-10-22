@@ -35,9 +35,9 @@ class LocalApiSecurityTests(AioHTTPTestCase):
              patch("modules.local_api.load_programs", side_effect=RuntimeError("secret-path-C:/private")):
             response = await self.client.request("GET", "/api/programs", headers={"Authorization": "Bearer test"})
             self.assertEqual(response.status, 500)
-            body = await response.text()
-            self.assertNotIn("secret-path", body)
-            self.assertIn("Внутренняя ошибка", body)
+            data = await response.json()
+            self.assertNotIn("secret-path", data["error"])
+            self.assertIn("Внутренняя ошибка", data["error"])
 
 
 if __name__ == "__main__":
