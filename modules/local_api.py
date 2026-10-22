@@ -95,7 +95,7 @@ def make_app(features_getter=lambda: None):
 
     @routes.get("/api/ping")
     async def ping(_):
-        return web.json_response({"ok": True, "app": "PulsePC", "name": socket.gethostname()})
+        return web.json_response({"ok": True, "app": "PulsePC"})
 
     @routes.get("/api/status")
     async def status(_):
