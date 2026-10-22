@@ -11,6 +11,7 @@ import logging
 import os
 import socket
 import subprocess
+import time
 import webbrowser
 from io import BytesIO
 
@@ -66,6 +67,9 @@ def ask_owner(text):
 def make_app(features_getter=lambda: None):
     from modules.monitor import workstation_locked
     pairing_lock = asyncio.Lock()
+    pairing_attempts = {}
+    PAIR_WINDOW_SECONDS = 60
+    PAIR_MAX_ATTEMPTS = 3
 
     @web.middleware
     async def guard(request, handler):
@@ -489,6 +493,19 @@ def make_app(features_getter=lambda: None):
             return json_error(403, "Сопряжение доступно только из локальной сети.")
         if pairing_lock.locked():
             return json_error(409, "На ПК уже открыт запрос. Ответьте на него.")
+        # Bound owner-confirmation prompts per remote address to reduce dialog spam.
+        now = time.monotonic()
+        for address, timestamps in list(pairing_attempts.items()):
+            fresh = [stamp for stamp in timestamps if now - stamp < PAIR_WINDOW_SECONDS]
+            if fresh:
+                pairing_attempts[address] = fresh
+            else:
+                del pairing_attempts[address]
+        remote = request.remote or ""
+        recent = pairing_attempts.setdefault(remote, [])
+        if len(recent) >= PAIR_MAX_ATTEMPTS:
+            return json_error(429, "Слишком много запросов подключения. Попробуйте через минуту.")
+        recent.append(now)
         try:
             device = str((await request.json()).get("device", ""))[:40] or "Телефон"
         except ValueError:
