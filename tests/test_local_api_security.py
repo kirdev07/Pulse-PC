@@ -19,6 +19,16 @@ class LocalApiSecurityTests(AioHTTPTestCase):
         response = await self.client.request("GET", "/api/status", headers={"Authorization": "Bearer invalid-token"})
         self.assertEqual(response.status, 401)
 
+    async def test_pairing_attempts_are_rate_limited(self):
+        with patch("modules.local_api.mobile_access.load", return_value={"allow_pairing": True}), \
+             patch("modules.local_api.is_private_ip", return_value=True), \
+             patch("modules.local_api.ask_owner", return_value=False):
+            statuses = []
+            for _ in range(4):
+                response = await self.client.request("POST", "/api/pair", json={"device": "Test"})
+                statuses.append(response.status)
+            self.assertEqual(statuses, [403, 403, 403, 429])
+
     async def test_unexpected_exception_does_not_leak_details(self):
         with patch("modules.local_api.mobile_access.authenticate", return_value={"id": "test"}), \
              patch("modules.monitor.workstation_locked", return_value=False), \
